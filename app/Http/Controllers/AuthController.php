@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -22,8 +23,8 @@ class AuthController extends Controller
 
     public function showLogin()
     {
-        if (session('is_login')) {
-            return redirect()->route(self::dashboardRoute(session('role')));
+        if (Auth::check()) {
+            return redirect()->route(self::dashboardRoute(Auth::user()->role->name));
         }
 
         return view('auth.login');
@@ -42,23 +43,32 @@ class AuthController extends Controller
 
         $identifier = $request->input('email');
 
-        $user = User::with('role')
-            ->where(function ($q) use ($identifier) {
-                $q->where('email', $identifier)->orWhere('no_hp', $identifier);
-            })
-            ->first();
+        // Kolom "email" di form boleh berisi email atau No. HP.
+        $field = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'no_hp';
 
-        if (! $user || ! Hash::check($request->input('password'), $user->password)) {
+        // Auth::attempt mencari user berdasarkan $field lalu mencocokkan password dengan hash di database.
+        if (! Auth::attempt([$field => $identifier, 'password' => $request->input('password')])) {
             return back()->withInput($request->only('email'))
                 ->with('error', 'Email/No. HP atau kata sandi salah.');
         }
 
+        $user = Auth::user()->load('role');
+
+        // Password benar, tetapi akun dinonaktifkan admin: batalkan login.
         if ($user->status === 'nonaktif') {
-            return back()->withInput($request->only('email'))
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')
+                ->withInput($request->only('email'))
                 ->with('error', 'Akun Anda dinonaktifkan. Hubungi administrator.');
         }
 
+        // Ganti ID session setelah login untuk mencegah session fixation.
         $request->session()->regenerate();
+
+        // Data ringkas untuk tampilan (header, dashboard); status login sendiri dipegang oleh Auth.
         session([
             'user_id'  => $user->id,
             'nama'     => $user->nama_lengkap,
@@ -74,8 +84,8 @@ class AuthController extends Controller
 
     public function showRegister()
     {
-        if (session('is_login')) {
-            return redirect()->route(self::dashboardRoute(session('role')));
+        if (Auth::check()) {
+            return redirect()->route(self::dashboardRoute(Auth::user()->role->name));
         }
 
         return view('auth.register');
@@ -125,7 +135,9 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        ActivityLog::catat(session('user_id'), 'logout', 'Logout dari sistem', $request->ip());
+        ActivityLog::catat(Auth::id(), 'logout', 'Logout dari sistem', $request->ip());
+
+        Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

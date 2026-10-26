@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class User extends Model
+// Authenticatable: syarat agar model ini dapat dipakai oleh Auth::attempt() dan middleware auth
+class User extends Authenticatable
 {
     protected $table = 'users';
     protected $fillable = [
@@ -23,7 +24,7 @@ class User extends Model
         'foto_profil',
         'status',
     ];
-    protected $hidden = ['password'];
+    protected $hidden = ['password', 'remember_token'];
     protected $casts = ['tanggal_lahir' => 'date'];
 
     public function role(): BelongsTo

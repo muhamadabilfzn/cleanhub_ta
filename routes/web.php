@@ -29,12 +29,13 @@ Route::post('/bantuan', [SupportController::class, 'store'])->name('bantuan.stor
 | Autentikasi
 |--------------------------------------------------------------------------
 */
+// Route login WAJIB bernama 'login': middleware auth mengalihkan tamu ke route ini.
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->name('register.store');
 Route::view('/lupa-password', 'auth.lupa-password')->name('password.request');
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('login')->name('logout');
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 /*
 |--------------------------------------------------------------------------
@@ -47,7 +48,7 @@ Route::prefix('laporan')->name('laporan.')->group(function () {
     Route::get('/detail/{report}', [ReportController::class, 'show'])->whereNumber('report')->name('show');
 
     // Hanya masyarakat yang boleh membuat / menghapus laporan
-    Route::middleware(['login', 'role:masyarakat'])->group(function () {
+    Route::middleware(['auth', 'role:masyarakat'])->group(function () {
         Route::get('/buat', [ReportController::class, 'create'])->name('create');
         Route::post('/', [ReportController::class, 'store'])->name('store');
         Route::delete('/{report}', [ReportController::class, 'destroy'])->whereNumber('report')->name('destroy');
@@ -59,7 +60,7 @@ Route::prefix('laporan')->name('laporan.')->group(function () {
 | Notifikasi (semua role yang sudah login)
 |--------------------------------------------------------------------------
 */
-Route::middleware('login')->group(function () {
+Route::middleware('auth')->group(function () {
     Route::get('/notif/baca/{notif}', [NotificationController::class, 'read'])->name('notif.read');
     Route::post('/notif/baca-semua', [NotificationController::class, 'readAll'])->name('notif.readAll');
 });
@@ -69,7 +70,7 @@ Route::middleware('login')->group(function () {
 | Masyarakat
 |--------------------------------------------------------------------------
 */
-Route::prefix('user')->name('user.')->middleware(['login', 'role:masyarakat'])->group(function () {
+Route::prefix('user')->name('user.')->middleware(['auth', 'role:masyarakat'])->group(function () {
     Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
     Route::get('/riwayat', [UserController::class, 'riwayat'])->name('riwayat');
     Route::get('/profil', [UserController::class, 'profil'])->name('profil');
@@ -81,7 +82,7 @@ Route::prefix('user')->name('user.')->middleware(['login', 'role:masyarakat'])->
 | Petugas kebersihan
 |--------------------------------------------------------------------------
 */
-Route::prefix('officer')->name('officer.')->middleware(['login', 'role:petugas'])->group(function () {
+Route::prefix('officer')->name('officer.')->middleware(['auth', 'role:petugas'])->group(function () {
     Route::get('/dashboard', [OfficerController::class, 'dashboard'])->name('dashboard');
     Route::get('/tugasku', [OfficerController::class, 'tugasku'])->name('tugasku');
     Route::post('/ambil/{assignment}', [OfficerController::class, 'ambil'])->name('ambil');
@@ -93,7 +94,7 @@ Route::prefix('officer')->name('officer.')->middleware(['login', 'role:petugas']
 | Administrator
 |--------------------------------------------------------------------------
 */
-Route::prefix('admin')->name('admin.')->middleware(['login', 'role:admin'])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::redirect('/', '/admin/dashboard');
     Route::get('/dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
 
